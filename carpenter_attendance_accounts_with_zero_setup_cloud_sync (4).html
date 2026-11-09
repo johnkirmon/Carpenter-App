@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Carpenter Attendance & Accounts</title>
+<link rel="manifest" href="data:application/manifest+json;utf-8,%7B%22name%22%3A%22Carpenter%20Accounts%22%2C%22short_name%22%3A%22Carpenters%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23174ea6%22%2C%22theme_color%22%3A%22%23174ea6%22%7D">
+<!-- ... existing code ... -->
+<style>
+:root{
+  --blue:#174ea6;
+  --blue-hover:#133e85;
+  --bg:#f3f5f9;
+  --surface:#ffffff;
+  --line:#dce2ea;
+  --text:#17202a;
+  --muted:#5f6d7e;
+  --green:#16834a;
+  --green-bg:#e6f4ea;
+  --red:#c62828;
+  --red-bg:#fce8e6;
+  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--blue);color:white;padding:14px 16px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+header .topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:-0.2px}
+.cloud-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.18);padding:5px 12px;border-radius:20px;font-size:12.5px;cursor:pointer}
+.cloud-dot{width:9px;height:9px;border-radius:50%;background:#81c995}
+.cloud-dot.offline{background:#fbbc04}
+.cloud-dot.syncing{background:#ffab00;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+nav{display:flex;overflow-x:auto;background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{border:0;background:none;padding:13px 16px;white-space:nowrap;font-weight:600;font-size:14px;color:var(--muted);transition:all 0.15s ease}
+nav button.active{color:var(--blue);border-bottom:3px solid var(--blue);background:#f8faff}
+
+main{max-width:1100px;margin:auto;padding:14px}
+.page{display:none}
+.page.active{display:block}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0 0 14px;box-shadow:var(--shadow)}
+h2{font-size:18px;margin:0 0 14px;color:var(--text);display:flex;align-items:center;gap:8px}
+h3{font-size:16px;margin:4px 0 12px;color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:5px;color:var(--muted)}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #cbd3df;border-radius:8px;background:white;font:inherit;outline:none;transition:border 0.2s}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(23,78,166,0.12)}
+textarea{min-height:70px;resize:vertical}
+button{cursor:pointer;font-family:inherit}
+.btn{border:0;border-radius:8px;padding:10px 16px;background:var(--blue);color:white;font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s ease;margin:4px 4px 0 0}
+.btn:hover{background:var(--blue-hover)}
+.btn.secondary{background:#e8edf5;color:#1e293b}
+.btn.secondary:hover{background:#dbe2ee}
+.btn.danger{background:var(--red)}
+.btn.danger:hover{background:#a71d1d}
+.btn.green{background:var(--green)}
+.btn.green:hover{background:#116839}
+.btn.sm{padding:6px 10px;font-size:12px;border-radius:6px}
+
+/* Attendance Card Layout on Mobile & Clean Table on Desktop */
+.att-card-item{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.att-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0}
+.att-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+
+table{width:100%;border-collapse:collapse;min-width:680px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13.5px;vertical-align:middle}
+th{background:#f8fafc;font-weight:600;color:var(--muted)}
+.tablewrap{overflow-x:auto;margin-top:8px;border-radius:8px;border:1px solid var(--line)}
+.muted{color:var(--muted);font-size:13px}
+.pill{display:inline-block;padding:3px 8px;border-radius:12px;background:#edf2fa;font-size:12px;font-weight:500}
+.empty{padding:24px;color:var(--muted);text-align:center}
+
+/* Modal message box */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;justify-content:center;align-items:center;z-index:999;padding:16px}
+.modal-overlay.active{display:flex}
+.modal-box{background:white;max-width:440px;width:100%;border-radius:14px;padding:20px;box-shadow:0 10px 25px rgba(0,0,0,0.2)}
+.modal-box h4{margin:0 0 10px;font-size:17px}
+.modal-box p{margin:0 0 16px;color:#475569;font-size:14px;line-height:1.5}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px}
+
+@media print{header,nav,.no-print,.btn,.cloud-pill{display:none!important}.page{display:block!important}.card{break-inside:avoid;box-shadow:none;border:1px solid #ccc}body{background:white}}
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div>
+      <h1>🪵 Carpenter Attendance & Accounts</h1>
+      <small style="opacity:0.9">Manage carpenters, site-wise work, wages & client advances</small>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="cloud-pill" onclick="switchTab('cloud')">
+        <span class="cloud-dot offline" id="statusDot"></span>
+        <span id="statusText">Cloud: Disconnected</span>
+      </div>
+      <button class="btn green sm no-print" id="headerInstallBtn" onclick="triggerPwaInstall()" style="display:none;margin:0">📲 Install App</button>
+    </div>
+  </div>
+</header>
+
+<nav class="no-print">
+  <button class="active" data-tab="carpenters">1. Carpenters</button>
+  <button data-tab="attendance">2. Attendance</button>
+  <button data-tab="sites">3. Clients & Sites</button>
+  <button data-tab="reports">4. Reports & Wages</button>
+  <button data-tab="cloud">☁ Cloud Sync</button>
+  <button data-tab="install">📲 Install App</button>
+  <button data-tab="backup">Backup</button>
+</nav>
+
+<main>
+  <!-- Carpenters Page -->
+  <section id="carpenters" class="page active">
+    <div class="card">
+      <h2>Add Carpenter Details</h2>
+      <div class="grid">
+        <div>
+          <label>Carpenter Name *</label>
+          <input id="cName" placeholder="Full name">
+        </div>
+        <div>
+          <label>Phone Number</label>
+          <input id="cPhone" type="tel" placeholder="Mobile number">
+        </div>
+        <div>
+          <label>Daily Wage Rate (₹) *</label>
+          <input id="cRate" type="number" min="0" placeholder="e.g. 1000">
+        </div>
+        <div>
+          <label>Starting Advance Balance (₹)</label>
+          <input id="cAdvance" type="number" min="0" value="0">
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn green" onclick="addCarpenter()">+ Save Carpenter</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Active Carpenters Roster</h3>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Daily Wage</th>
+              <th>Advance Balance</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="carpenterRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Attendance Page -->
+  <section id="attendance" class="page">
+    <div class="card">
+      <h2>Daily Attendance Entry</h2>
+      <div class="grid" style="background:#f1f5f9;padding:12px;border-radius:10px;margin-bottom:14px">
+        <div>
+          <label>Work Date</label>
+          <input id="attDate" type="date">
+        </div>
+        <div>
+          <label>Batch Site (Set for all)</label>
+          <select id="attSite" onchange="applyDefaultSiteToAll()"></select>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn secondary" type="button" onclick="openNewSiteModal()" style="margin:0;width:100%">+ New Client / Site</button>
+        </div>
+      </div>
+
+      <p class="muted">Fill attendance below. You can assign individual clients/sites per carpenter or use the batch selector above.</p>
+      
+      <!-- Responsive Attendance Roster -->
+      <div id="attendanceContainer" style="margin-top:12px"></div>
+
+      <div style="margin-top:14px">
+        <button class="btn green" style="padding:12px 20px;font-size:15px" onclick="saveAttendance()">✓ Save Attendance</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Saved Attendance History</h3>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Carpenter</th>
+              <th>Status</th>
+              <th>OT</th>
+              <th>Client / Site</th>
+              <th>Earned</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="savedAttendance"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sites & Clients Page -->
+  <section id="sites" class="page">
+    <div class="card">
+      <h2>Add Client / Site</h2>
+      <div class="grid">
+        <div>
+          <label>Client / Site Name *</label>
+          <input id="sName" placeholder="e.g. Ramesh Patel - Villa 402">
+        </div>
+        <div>
+          <label>Care of / Contact Person</label>
+          <input id="sCare" placeholder="Site supervisor / Owner">
+        </div>
+        <div>
+          <label>Phone Number</label>
+          <input id="sPhone" type="tel" placeholder="Mobile number">
+        </div>
+        <div>
+          <label>Site Address / Location</label>
+          <input id="sAddress" placeholder="Site location / address">
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn green" onclick="addSite()">+ Save Client / Site</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Record Client Advance Payment</h3>
+      <p class="muted">Record advance payments received from clients for material or labor expenses.</p>
+      <div class="grid">
+        <div>
+          <label>Client / Site *</label>
+          <select id="clientAdvSite"></select>
+        </div>
+        <div>
+          <label>Received Date</label>
+          <input id="clientAdvDate" type="date">
+        </div>
+        <div>
+          <label>Advance Amount (₹) *</label>
+          <input id="clientAdvAmount" type="number" min="0" placeholder="e.g. 5000">
+        </div>
+        <div>
+          <label>Notes / Payment Mode</label>
+          <input id="clientAdvNote" placeholder="e.g. GPay / Cash">
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn" onclick="addClientAdvance()">Add Client Advance</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Client & Site Records</h3>
+      <div id="siteCards"></div>
+    </div>
+  </section>
+
+  <!-- Reports & Wages Page -->
+  <section id="reports" class="page">
+    <div class="card">
+      <h2>Carpenter Wage Payments</h2>
+      <div class="grid">
+        <div>
+          <label>Carpenter *</label>
+          <select id="payCarpenter"></select>
+        </div>
+        <div>
+          <label>Payment Date</label>
+          <input id="payDate" type="date">
+        </div>
+        <div>
+          <label>Payment Amount (₹) *</label>
+          <input id="payAmount" type="number" min="0" placeholder="e.g. 3000">
+        </div>
+        <div>
+          <label>Payment Notes</label>
+          <input id="payNote" placeholder="e.g. Saturday settlement">
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn green" onclick="addPayment()">Record Wage Payment</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Carpenter Advance Given</h3>
+      <div class="grid">
+        <div>
+          <label>Carpenter *</label>
+          <select id="advCarpenter"></select>
+        </div>
+        <div>
+          <label>Advance Date</label>
+          <input id="advDate" type="date">
+        </div>
+        <div>
+          <label>Advance Amount (₹) *</label>
+          <input id="advAmount" type="number" min="0" placeholder="e.g. 1000">
+        </div>
+        <div>
+          <label>Advance Note</label>
+          <input id="advNote" placeholder="e.g. Emergency advance">
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn" onclick="addCarpenterAdvance()">Record Advance</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Carpenter Financial Summary</h3>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Carpenter</th>
+              <th>Work Days</th>
+              <th>OT / Extra</th>
+              <th>Total Earned</th>
+              <th>Paid</th>
+              <th>Advance</th>
+              <th>Net Balance</th>
+            </tr>
+          </thead>
+          <tbody id="summaryRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Payment History</h3>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Carpenter</th>
+              <th>Amount</th>
+              <th>Note</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="paymentRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Client Account Summaries</h3>
+      <div id="clientSummaries"></div>
+    </div>
+
+    <div class="card">
+      <h3>Weekly Attendance & Wage Summary</h3>
+      <div class="grid">
+        <div>
+          <label>Week Start Date</label>
+          <input id="weekStart" type="date">
+        </div>
+        <div>
+          <label>Week End Date</label>
+          <input id="weekEnd" type="date">
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn secondary" onclick="renderWeek()">Calculate Week</button>
+        <button class="btn secondary no-print" onclick="window.print()">🖨 Print / Save PDF</button>
+      </div>
+      <div id="weekResult" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- Cloud Sync Page -->
+  <section id="cloud" class="page">
+    <div class="card">
+      <h2>☁ Real-Time Cloud Sync (Phone & PC)</h2>
+      <p class="muted">Enter a private Sync PIN (like your 10-digit mobile number). Use the exact same PIN on your phone and PC to sync live.</p>
+      
+      <div class="grid" style="max-width:550px">
+        <div>
+          <label>Your Sync PIN / Mobile Number</label>
+          <input id="roomPinInput" placeholder="e.g. 9876543210">
+        </div>
+      </div>
+
+      <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px">
+        <button class="btn green" onclick="connectRoom()">🔗 Connect & Sync PIN</button>
+        <button class="btn secondary" onclick="pullFromCloud(false)">⬇ Download from Cloud</button>
+        <button class="btn secondary" onclick="pushToCloud(false)">⬆ Upload to Cloud</button>
+        <button class="btn" onclick="copyPhoneLink()">📲 Copy 1-Click Phone Link</button>
+      </div>
+
+      <div style="margin-top:16px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid var(--line)">
+        <p style="margin:0 0 6px"><strong>Live Status:</strong> <span class="pill" id="cloudStatusBadge">Disconnected</span></p>
+        <small class="muted">Whenever you save attendance or payments, updates will automatically reflect on all devices sharing this PIN.</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install App Page -->
+  <section id="install" class="page">
+    <div class="card">
+      <h2>📲 Install as Native App</h2>
+      <p>Install this app directly on your mobile device or desktop PC for instant 1-tap access:</p>
+      
+      <div class="grid">
+        <div style="border:1px solid var(--line);border-radius:10px;padding:14px">
+          <h4>🤖 Android Phone</h4>
+          <p class="muted">Tap browser menu <strong>(⋮)</strong> &gt; <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
+          <button class="btn green" onclick="triggerPwaInstall()">Install on Mobile</button>
+        </div>
+
+        <div style="border:1px solid var(--line);border-radius:10px;padding:14px">
+          <h4>💻 Windows PC</h4>
+          <p class="muted">Click the install monitor icon in the Chrome/Edge address bar to run on your desktop.</p>
+          <button class="btn" onclick="triggerPwaInstall()">Install on Windows</button>
+        </div>
+      </div>
+
+      <div style="margin-top:16px">
+        <button class="btn secondary" onclick="downloadCurrentHtml()">📥 Download index.html File</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Backup Page -->
+  <section id="backup" class="page">
+    <div class="card">
+      <h2>Manual Backup & Restore</h2>
+      <p class="muted">Download a local backup copy of your database to keep safe or restore on any device.</p>
+      <button class="btn" onclick="exportData()">📥 Download JSON Backup</button>
+      
+      <div style="margin-top:16px">
+        <label>Restore From Backup File</label>
+        <input id="restoreFile" type="file" accept=".json,application/json">
+        <button class="btn secondary" onclick="importData()">Restore Backup</button>
+      </div>
+
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--line)">
+        <button class="btn danger" onclick="clearAll()">⚠️ Delete All Local Data</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- In-app UI Alert/Confirm Modal -->
+<div class="modal-overlay" id="customModal">
+  <div class="modal-box">
+    <h4 id="modalTitle">Notice</h4>
+    <p id="modalMessage"></p>
+    <div class="modal-actions" id="modalActions">
+      <button class="btn" onclick="closeModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add Client & Site Modal -->
+<div class="modal-overlay" id="newSiteModal">
+  <div class="modal-box">
+    <h4>➕ Quick Add Client / Site</h4>
+    <p class="muted">Enter client name and site address to link with attendance.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div>
+        <label>Client / Site Name *</label>
+        <input id="modalSiteName" placeholder="e.g. Sharma Villa, Flat 102">
+      </div>
+      <div>
+        <label>Contact Person / Care of</label>
+        <input id="modalSiteCare" placeholder="Site supervisor / Client">
+      </div>
+      <div>
+        <label>Phone Number</label>
+        <input id="modalSitePhone" type="tel" placeholder="Mobile number">
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn secondary" onclick="closeNewSiteModal()">Cancel</button>
+      <button class="btn green" onclick="saveQuickSiteModal()">Save & Apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Core state & identifiers
+const STORAGE_KEY = 'carpenter_attendance_app_v1';
+const PIN_KEY = 'carpenter_sync_room_pin';
+
+let db = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"carpenters":[],"sites":[],"attendance":[],"payments":[],"carpAdvances":[],"clientAdvances":[]}');
+let currentRoomPin = localStorage.getItem(PIN_KEY) || '';
+
+const $ = id => document.getElementById(id);
+const money = n => '₹' + (Number(n) || 0).toLocaleString('en-IN', {maximumFractionDigits: 2});
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const today = () => new Date().toISOString().slice(0, 10);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Tab navigation handler
+function switchTab(tabId) {
+  if (!tabId) return;
+  document.querySelectorAll('nav button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.toggle('active', p.id === tabId);
+  });
+  renderAll();
+}
+
+// Modal dialog system
+function showMessage(title, message) {
+  if (!$('modalTitle') || !$('modalMessage')) return;
+  $('modalTitle').textContent = title;
+  $('modalMessage').textContent = message;
+  $('modalActions').innerHTML = '<button class="btn" onclick="closeModal()">OK</button>';
+  $('customModal').classList.add('active');
+}
+
+function showConfirm(message, onConfirm) {
+  if (!$('modalTitle') || !$('modalMessage')) return;
+  $('modalTitle').textContent = 'Confirm Action';
+  $('modalMessage').textContent = message;
+  $('modalActions').innerHTML = `
+    <button class="btn secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn danger" id="modalConfirmBtn">Confirm</button>
+  `;
+  $('modalConfirmBtn').onclick = () => {
+    closeModal();
+    if (typeof onConfirm === 'function') onConfirm();
+  };
+  $('customModal').classList.add('active');
+}
+
+function closeModal() {
+  const modal = $('customModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function openNewSiteModal() {
+  const modal = $('newSiteModal');
+  if (modal) {
+    $('modalSiteName').value = '';
+    $('modalSiteCare').value = '';
+    $('modalSitePhone').value = '';
+    modal.classList.add('active');
+  }
+}
+
+function closeNewSiteModal() {
+  const modal = $('newSiteModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function saveQuickSiteModal() {
+  const name = $('modalSiteName').value.trim();
+  if (!name) return showMessage('Missing Name', 'Please enter a client or site name.');
+  const newSite = {
+    id: uid(),
+    name: name,
+    care: $('modalSiteCare').value.trim(),
+    phone: $('modalSitePhone').value.trim(),
+    address: ''
+  };
+  db.sites.push(newSite);
+  save();
+  closeNewSiteModal();
+  renderAll();
+  const def = $('attSite');
+  if (def) def.value = newSite.id;
+  applyDefaultSiteToAll();
+  showMessage('Site Created', `"${name}" added and assigned to all carpenters.`);
+}
+
+// Global Save & Cloud sync triggers
+let syncDebounce = null;
+function save(triggerPush = true) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  } catch (e) {
+    console.error('Storage save error', e);
+  }
+  renderAll();
+  if (triggerPush && currentRoomPin) {
+    clearTimeout(syncDebounce);
+    syncDebounce = setTimeout(() => {
+      pushToCloud(true);
+    }, 1200);
+  }
+}
+
+// Real-Time Cloud Sync Engine
+function getSyncTopic(pin) {
+  return 'carpenter_sync_' + btoa(pin).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
+}
+
+async function pushToCloud(silent = false) {
+  if (!currentRoomPin) {
+    if (!silent) showMessage('PIN Required', 'Please enter a Cloud Sync PIN or mobile number first.');
+    return;
+  }
+  updateSyncStatus('syncing', 'Syncing...');
+  try {
+    const topic = getSyncTopic(currentRoomPin);
+    const resp = await fetch('https://ntfy.sh/' + topic, {
+      method: 'POST',
+      body: JSON.stringify(db),
+      headers: { 'Title': 'DB_UPDATE', 'Priority': 'low' }
+    });
+    if (resp.ok) {
+      updateSyncStatus('', 'Cloud Synced');
+      if (!silent) showMessage('Synced', 'Data uploaded to cloud room: ' + currentRoomPin);
+    } else {
+      throw new Error('HTTP ' + resp.status);
+    }
+  } catch (err) {
+    updateSyncStatus('offline', 'Offline (Saved Locally)');
+    if (!silent) showMessage('Offline Notice', 'Cloud is currently unreachable. Records are saved locally.');
+  }
+}
+
+async function pullFromCloud(silent = false) {
+  if (!currentRoomPin) {
+    if (!silent) showMessage('PIN Required', 'Please enter a Sync PIN first.');
+    return;
+  }
+  updateSyncStatus('syncing', 'Fetching data...');
+  try {
+    const topic = getSyncTopic(currentRoomPin);
+    const resp = await fetch(`https://ntfy.sh/${topic}/json?poll=1&since=all`);
+    const lines = await resp.text();
+    const records = lines.trim().split('\n').filter(Boolean);
+    let latestDb = null;
+
+    for (let i = records.length - 1; i >= 0; i--) {
+      try {
+        const item = JSON.parse(records[i]);
+        const parsed = JSON.parse(item.message);
+        if (parsed && Array.isArray(parsed.carpenters)) {
+          latestDb = parsed;
+          break;
+        }
+      } catch (e) {}
+    }
+
+    if (latestDb) {
+      db = latestDb;
+      save(false);
+      updateSyncStatus('', 'Cloud Synced');
+      if (!silent) showMessage('Success', 'Downloaded latest data from cloud room: ' + currentRoomPin);
+    } else {
+      updateSyncStatus('', 'Room Ready');
+      if (!silent) showMessage('Cloud Room Ready', 'Cloud room connected. Ready to share data across devices.');
+    }
+  } catch (err) {
+    updateSyncStatus('offline', 'Sync Error');
+    if (!silent) showMessage('Fetch Error', 'Unable to reach cloud room. Ensure you have an active internet connection.');
+  }
+}
+
+function updateSyncStatus(type, label) {
+  const dot = $('statusDot');
+  const txt = $('statusText');
+  const badge = $('cloudStatusBadge');
+  if (dot) dot.className = 'cloud-dot ' + (type || '');
+  if (txt) txt.textContent = label;
+  if (badge) {
+    badge.textContent = label;
+    badge.style.background = type === 'offline' ? 'var(--red-bg)' : (type === 'syncing' ? '#fef3c7' : 'var(--green-bg)');
+    badge.style.color = type === 'offline' ? 'var(--red)' : (type === 'syncing' ? '#92400e' : 'var(--green)');
+  }
+}
+
+function connectRoom() {
+  const pinInput = $('roomPinInput');
+  const pin = pinInput ? pinInput.value.trim() : '';
+  if (!pin) return showMessage('Missing PIN', 'Please enter your mobile number or private PIN.');
+  currentRoomPin = pin;
+  localStorage.setItem(PIN_KEY, currentRoomPin);
+  pushToCloud(false);
+}
+
+function copyPhoneLink() {
+  if (!currentRoomPin) return showMessage('Set PIN First', 'Please enter and connect your Sync PIN first.');
+  const base = window.location.href.split('?')[0].split('#')[0];
+  const link = `${base}?pin=${encodeURIComponent(currentRoomPin)}`;
+  
+  const tempInput = document.createElement('input');
+  tempInput.value = link;
+  document.body.appendChild(tempInput);
+  tempInput.select();
+  document.execCommand('copy');
+  document.body.removeChild(tempInput);
+
+  showMessage('Link Copied!', 'Direct Sync Link copied! Send it via WhatsApp or open it on your phone to connect automatically.');
+}
+
+// Business Calculations
+function earned(c) {
+  const rows = db.attendance.filter(a => a.carpenter === c.id);
+  return rows.reduce((s, a) => s + (c.rate * (a.status === 'Half Day' ? 0.5 : (a.status === 'Absent' ? 0 : 1))) + (a.extra || 0), 0);
+}
+
+function paid(c) {
+  return db.payments.filter(x => x.carpenter === c.id).reduce((s, x) => s + x.amount, 0);
+}
+
+function advances(c) {
+  return (c.openingAdvance || 0) + db.carpAdvances.filter(x => x.carpenter === c.id).reduce((s, x) => s + x.amount, 0);
+}
+
+// CRUD Operations
+function addCarpenter() {
+  const name = $('cName').value.trim();
+  const rate = +$('cRate').value;
+  if (!name) return showMessage('Missing Name', 'Please enter carpenter name.');
+  if (isNaN(rate) || rate < 0) return showMessage('Invalid Rate', 'Please enter daily wage rate.');
+  
+  db.carpenters.push({
+    id: uid(),
+    name,
+    phone: $('cPhone').value.trim(),
+    rate: rate || 0,
+    openingAdvance: +$('cAdvance').value || 0
+  });
+  
+  $('cName').value = '';
+  $('cPhone').value = '';
+  $('cRate').value = '';
+  $('cAdvance').value = 0;
+  save();
+  showMessage('Saved', `Carpenter ${name} added successfully.`);
+}
+
+function editCarpenter(id) {
+  const c = db.carpenters.find(x => x.id === id);
+  if (!c) return;
+  const newName = prompt('Edit carpenter name:', c.name);
+  if (newName === null) return;
+  const trimmed = newName.trim();
+  if (!trimmed) return showMessage('Error', 'Name cannot be empty.');
+  const newPhone = prompt('Edit mobile number:', c.phone || '');
+  if (newPhone === null) return;
+  const newRate = prompt('Edit daily wage (₹):', c.rate);
+  if (newRate !== null) c.rate = +newRate || 0;
+  
+  c.name = trimmed;
+  c.phone = (newPhone || '').trim();
+  save();
+}
+
+function addSite() {
+  const name = $('sName').value.trim();
+  if (!name) return showMessage('Missing Name', 'Please enter client or site name.');
+  db.sites.push({
+    id: uid(),
+    name,
+    care: $('sCare').value.trim(),
+    phone: $('sPhone').value.trim(),
+    address: $('sAddress').value.trim()
+  });
+  $('sName').value = '';
+  $('sCare').value = '';
+  $('sPhone').value = '';
+  $('sAddress').value = '';
+  save();
+  showMessage('Saved', `Site ${name} saved.`);
+}
+
+function addClientAdvance() {
+  const site = $('clientAdvSite').value;
+  const amount = +$('clientAdvAmount').value;
+  if (!site || amount <= 0) return showMessage('Missing Info', 'Please select a site and enter an amount.');
+  db.clientAdvances.push({
+    id: uid(),
+    site,
+    date: $('clientAdvDate').value || today(),
+    amount,
+    note: $('clientAdvNote').value.trim()
+  });
+  $('clientAdvAmount').value = '';
+  $('clientAdvNote').value = '';
+  save();
+  showMessage('Recorded', `Client advance of ${money(amount)} saved.`);
+}
+
+function addPayment() {
+  const carpenter = $('payCarpenter').value;
+  const amount = +$('payAmount').value;
+  if (!carpenter || amount <= 0) return showMessage('Missing Info', 'Select carpenter and enter payment amount.');
+  db.payments.push({
+    id: uid(),
+    carpenter,
+    date: $('payDate').value || today(),
+    amount,
+    note: $('payNote').value.trim()
+  });
+  $('payAmount').value = '';
+  $('payNote').value = '';
+  save();
+  showMessage('Recorded', `Wage payment of ${money(amount)} recorded.`);
+}
+
+function addCarpenterAdvance() {
+  const carpenter = $('advCarpenter').value;
+  const amount = +$('advAmount').value;
+  if (!carpenter || amount <= 0) return showMessage('Missing Info', 'Select carpenter and enter advance amount.');
+  db.carpAdvances.push({
+    id: uid(),
+    carpenter,
+    date: $('advDate').value || today(),
+    amount,
+    note: $('advNote').value.trim()
+  });
+  $('advAmount').value = '';
+  $('advNote').value = '';
+  save();
+  showMessage('Recorded', `Advance of ${money(amount)} recorded.`);
+}
+
+function saveAttendance() {
+  const date = $('attDate').value || today();
+  let count = 0;
+
+  document.querySelectorAll('[data-carp-att]').forEach(el => {
+    const id = el.dataset.carpAtt;
+    const stEl = $('st_' + id);
+    const otEl = $('ot_' + id);
+    const exEl = $('ex_' + id);
+    const ntEl = $('nt_' + id);
+    const siteEl = $('site_' + id);
+
+    if (!stEl) return;
+    const status = stEl.value;
+    const site = siteEl ? siteEl.value : '';
+
+    const oldIndex = db.attendance.findIndex(a => a.carpenter === id && a.date === date);
+    const item = {
+      id: oldIndex >= 0 ? db.attendance[oldIndex].id : uid(),
+      carpenter: id,
+      date,
+      site,
+      status,
+      ot: otEl ? otEl.value : 'None',
+      extra: exEl ? (+exEl.value || 0) : 0,
+      note: ntEl ? ntEl.value.trim() : ''
+    };
+
+    if (oldIndex >= 0) db.attendance[oldIndex] = item;
+    else db.attendance.push(item);
+    count++;
+  });
+
+  save();
+  showMessage('Attendance Saved', `${count} carpenter attendance records saved for ${date}.`);
+}
+
+function applyDefaultSiteToAll() {
+  const def = $('attSite');
+  if (!def) return;
+  const val = def.value;
+  document.querySelectorAll('[id^="site_"]').forEach(sel => {
+    sel.value = val;
+  });
+}
+
+function handleRowSiteChange(selectEl) {
+  if (selectEl.value === 'ADD_NEW_SITE') {
+    openNewSiteModal();
+    selectEl.value = '';
+  }
+}
+
+function del(kind, id) {
+  showConfirm('Are you sure you want to delete this record?', () => {
+    db[kind] = db[kind].filter(x => x.id !== id);
+    save();
+  });
+}
+
+function opts(items, placeholder) {
+  return `<option value="">${placeholder}</option>` + (items || []).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+}
+
+function renderAll() {
+  // Carpenters Table
+  const cRows = $('carpenterRows');
+  if (cRows) {
+    cRows.innerHTML = db.carpenters.map(c => `
+      <tr>
+        <td><b>${esc(c.name)}</b></td>
+        <td>${esc(c.phone || '-')}</td>
+        <td>${money(c.rate)} / day</td>
+        <td>${money(advances(c))}</td>
+        <td>
+          <button class="btn secondary sm" onclick="editCarpenter('${c.id}')">Edit</button>
+          <button class="btn danger sm" onclick="del('carpenters','${c.id}')">Delete</button>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" class="empty">No carpenters added yet. Add your workers above.</td></tr>';
+  }
+
+  // Site Dropdown Options
+  const siteOptions = opts(db.sites, '-- Select Client / Site --');
+  if ($('attSite')) $('attSite').innerHTML = siteOptions;
+  if ($('clientAdvSite')) $('clientAdvSite').innerHTML = siteOptions;
+  if ($('payCarpenter')) $('payCarpenter').innerHTML = opts(db.carpenters, '-- Select Carpenter --');
+  if ($('advCarpenter')) $('advCarpenter').innerHTML = opts(db.carpenters, '-- Select Carpenter --');
+
+  // Attendance Roster
+  const attBox = $('attendanceContainer');
+  if (attBox) {
+    if (db.carpenters.length === 0) {
+      attBox.innerHTML = '<div class="empty card">No carpenters available. Please add carpenters in Tab 1 first.</div>';
+    } else {
+      const siteSelectOptions = `<option value="">-- No Site Assigned --</option>` + 
+        db.sites.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('') +
+        `<option value="ADD_NEW_SITE" style="color:var(--blue);font-weight:bold">➕ + Add New Client / Site...</option>`;
+
+      attBox.innerHTML = db.carpenters.map(c => `
+        <div class="att-card-item" data-carp-att="${c.id}">
+          <div class="att-card-header">
+            <div>
+              <strong style="font-size:15px">${esc(c.name)}</strong>
+              <span class="muted" style="margin-left:8px">${money(c.rate)} / day</span>
+            </div>
+            <div>
+              <select id="st_${c.id}" style="width:auto;padding:6px 10px;font-weight:bold">
+                <option value="Full Day">Full Day</option>
+                <option value="Half Day">Half Day</option>
+                <option value="Absent">Absent</option>
+              </select>
+            </div>
+          </div>
+          <div class="att-card-grid">
+            <div>
+              <label>Client / Site</label>
+              <select id="site_${c.id}" onchange="handleRowSiteChange(this)">
+                ${siteSelectOptions}
+              </select>
+            </div>
+            <div>
+              <label>Overtime (OT)</label>
+              <select id="ot_${c.id}">
+                <option value="None">None</option>
+                <option value="Half OT">Half OT (+₹${c.rate * 0.5})</option>
+                <option value="Full OT">Full OT (+₹${c.rate})</option>
+              </select>
+            </div>
+            <div>
+              <label>Extra Pay (₹)</label>
+              <input id="ex_${c.id}" type="number" min="0" placeholder="₹ Extra">
+            </div>
+            <div>
+              <label>Work Note</label>
+              <input id="nt_${c.id}" placeholder="e.g. Wardrobe, Polish">
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Attendance History
+  const sAtt = $('savedAttendance');
+  if (sAtt) {
+    sAtt.innerHTML = db.attendance.slice().sort((a, b) => b.date.localeCompare(a.date)).map(a => {
+      const c = db.carpenters.find(x => x.id === a.carpenter);
+      const s = db.sites.find(x => x.id === a.site);
+      const earnedToday = (c?.rate || 0) * (a.status === 'Half Day' ? 0.5 : (a.status === 'Absent' ? 0 : 1)) + (a.extra || 0);
+      return `
+        <tr>
+          <td><b>${a.date}</b></td>
+          <td>${esc(c?.name || 'Deleted Worker')}</td>
+          <td><span class="pill">${a.status}</span></td>
+          <td>${a.ot}</td>
+          <td>${esc(s?.name || '-')}</td>
+          <td><b>${money(earnedToday)}</b></td>
+          <td><button class="btn danger sm" onclick="del('attendance','${a.id}')">Delete</button></td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="7" class="empty">No attendance logged yet.</td></tr>';
+  }
+
+  // Sites Card Roster
+  const sCards = $('siteCards');
+  if (sCards) {
+    sCards.innerHTML = db.sites.map(s => {
+      const logs = db.attendance.filter(a => a.site === s.id);
+      const advTotal = db.clientAdvances.filter(a => a.site === s.id).reduce((sum, a) => sum + a.amount, 0);
+      const activeCarpenters = [...new Set(logs.map(a => db.carpenters.find(c => c.id === a.carpenter)?.name).filter(Boolean))];
+      return `
+        <div class="card" style="background:#fafcff">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <b style="font-size:16px">${esc(s.name)}</b>
+              <p class="muted" style="margin:4px 0">👤 ${esc(s.care || '-')} · 📞 ${esc(s.phone || '-')} · 📍 ${esc(s.address || '-')}</p>
+              <p style="margin:4px 0">${logs.length} attendance records logged · Total Client Advances: <b>${money(advTotal)}</b></p>
+              <p class="muted" style="margin:4px 0">Active Carpenters: ${esc(activeCarpenters.join(', ') || 'None')}</p>
+            </div>
+            <button class="btn danger sm" onclick="del('sites','${s.id}')">Delete Site</button>
+          </div>
+        </div>
+      `;
+    }).join('') || '<p class="empty">No clients or sites added yet.</p>';
+  }
+
+  // Summary Ledger Table
+  const sRows = $('summaryRows');
+  if (sRows) {
+    sRows.innerHTML = db.carpenters.map(c => {
+      const logs = db.attendance.filter(a => a.carpenter === c.id);
+      const workDays = logs.reduce((n, a) => n + (a.status === 'Half Day' ? 0.5 : (a.status === 'Absent' ? 0 : 1)), 0);
+      const totalEarned = earned(c);
+      const totalPaid = paid(c);
+      const totalAdv = advances(c);
+      const net = totalEarned - totalPaid - totalAdv;
+      return `
+        <tr>
+          <td><b>${esc(c.name)}</b></td>
+          <td>${workDays}</td>
+          <td>${money(logs.reduce((n, a) => n + (a.extra || 0), 0))}</td>
+          <td><b style="color:var(--blue)">${money(totalEarned)}</b></td>
+          <td>${money(totalPaid)}</td>
+          <td>${money(totalAdv)}</td>
+          <td><b style="color:${net >= 0 ? 'var(--green)' : 'var(--red)'}">${money(net)}</b></td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="7" class="empty">No carpenter records available.</td></tr>';
+  }
+
+  // Payments History
+  const pRows = $('paymentRows');
+  if (pRows) {
+    pRows.innerHTML = db.payments.slice().sort((a, b) => b.date.localeCompare(a.date)).map(p => `
+      <tr>
+        <td>${p.date}</td>
+        <td><b>${esc(db.carpenters.find(c => c.id === p.carpenter)?.name || 'Deleted Worker')}</b></td>
+        <td><b>${money(p.amount)}</b></td>
+        <td>${esc(p.note || '-')}</td>
+        <td><button class="btn danger sm" onclick="del('payments','${p.id}')">Delete</button></td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" class="empty">No wage payments recorded yet.</td></tr>';
+  }
+
+  // Client Summaries
+  const cSumm = $('clientSummaries');
+  if (cSumm) {
+    cSumm.innerHTML = db.sites.map(s => {
+      const advs = db.clientAdvances.filter(a => a.site === s.id);
+      return `
+        <div style="border-bottom:1px solid var(--line);padding:8px 0">
+          <b>${esc(s.name)}</b> — Total Advances Received: <b>${money(advs.reduce((n, a) => n + a.amount, 0))}</b><br>
+          <span class="muted">${advs.map(a => `${a.date}: ${money(a.amount)} (${esc(a.note || 'Cash')})`).join(' · ') || 'No advances recorded'}</span>
+        </div>
+      `;
+    }).join('') || '<p class="empty">No client accounts available.</p>';
+  }
+}
+
+// Weekly Report Calculator
+function renderWeek() {
+  const start = $('weekStart').value;
+  const end = $('weekEnd').value;
+  if (!start || !end) return showMessage('Date Required', 'Please select both week start and end dates.');
+  const rows = db.attendance.filter(a => a.date >= start && a.date <= end);
+  $('weekResult').innerHTML = '<div class="tablewrap"><table><thead><tr><th>Carpenter</th><th>Days</th><th>Earnings</th></tr></thead><tbody>' + db.carpenters.map(c => {
+    const r = rows.filter(a => a.carpenter === c.id);
+    const d = r.reduce((n, a) => n + (a.status === 'Half Day' ? 0.5 : (a.status === 'Absent' ? 0 : 1)), 0);
+    const v = r.reduce((n, a) => n + (c.rate * (a.status === 'Half Day' ? 0.5 : (a.status === 'Absent' ? 0 : 1))) + (a.extra || 0), 0);
+    return `<tr><td><b>${esc(c.name)}</b></td><td>${d}</td><td><b>${money(v)}</b></td></tr>`;
+  }).join('') + '</tbody></table></div>';
+}
+
+// Export / Import
+function exportData() {
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'carpenter-app-backup-' + today() + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importData() {
+  const file = $('restoreFile').files[0];
+  if (!file) return showMessage('File Required', 'Please select a backup JSON file first.');
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data.carpenters || !data.attendance) throw new Error();
+      showConfirm('Replace current records with this backup?', () => {
+        db = data;
+        save(true);
+        showMessage('Restored', 'Backup restored successfully!');
+      });
+    } catch (e) {
+      showMessage('Invalid File', 'This file is not a valid Carpenter Accounts backup.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function clearAll() {
+  showConfirm('Are you sure you want to permanently erase all records on this device?', () => {
+    db = { carpenters: [], sites: [], attendance: [], payments: [], carpAdvances: [], clientAdvances: [] };
+    save(false);
+    showMessage('Erased', 'All records have been cleared from this device.');
+  });
+}
+
+function downloadCurrentHtml() {
+  const htmlBlob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(htmlBlob);
+  a.download = 'index.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// PWA Install Prompt Handler
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = $('headerInstallBtn');
+  if (btn) btn.style.display = 'inline-flex';
+});
+
+function triggerPwaInstall() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+    });
+  } else {
+    showMessage('Install Instructions', 'To install on Android: Tap Chrome menu (⋮) > "Add to Home screen" or "Install App".\nOn Windows: Click the install monitor icon in the address bar.');
+  }
+}
+
+// Initialization on Window Load
+window.onload = function() {
+  // Bind Tab Click Handlers
+  document.querySelectorAll('nav button').forEach(b => {
+    b.onclick = () => switchTab(b.dataset.tab);
+  });
+
+  // Set default dates
+  ['attDate', 'clientAdvDate', 'payDate', 'advDate'].forEach(id => {
+    if ($(id)) $(id).value = today();
+  });
+  if ($('weekEnd')) $('weekEnd').value = today();
+  if ($('weekStart')) $('weekStart').value = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+
+  // Check URL query parameters for 1-click phone link
+  const urlParams = new URLSearchParams(window.location.search);
+  const pinParam = urlParams.get('pin');
+  if (pinParam) {
+    currentRoomPin = pinParam.trim();
+    localStorage.setItem(PIN_KEY, currentRoomPin);
+  }
+
+  if (currentRoomPin && $('roomPinInput')) {
+    $('roomPinInput').value = currentRoomPin;
+    pullFromCloud(true);
+  } else {
+    updateSyncStatus('offline', 'Cloud: Disconnected');
+  }
+
+  renderAll();
+
+  // Background Cloud Sync Poll (every 8 seconds when active room is connected)
+  setInterval(() => {
+    if (currentRoomPin) {
+      pullFromCloud(true);
+    }
+  }, 8000);
+};
+</script>
+</body>
+</html>
